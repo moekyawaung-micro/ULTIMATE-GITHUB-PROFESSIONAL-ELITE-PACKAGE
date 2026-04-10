@@ -1,0 +1,15 @@
+# Clone repository
+git clone https://github.com/myorg/app.git
+cd app
+
+# Install dependencies
+npm install
+
+# Setup environment
+cp .env.example .env
+
+# Database setup
+npm run migrate
+
+# Start development
+npm run dev
