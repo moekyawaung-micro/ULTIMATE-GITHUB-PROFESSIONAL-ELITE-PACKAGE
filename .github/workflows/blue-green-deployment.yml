@@ -1,0 +1,74 @@
+# .github/workflows/blue-green-deployment.yml
+
+name: 🔄 Blue-Green Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Target environment (production, staging)'
+        required: true
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  blue-green-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target_environment }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: 🔍 Check Current Environment
+        id: check-env
+        run: |
+          CURRENT=$(kubectl get service app-service -o jsonpath='{.spec.selector.version}')
+          if [ "$CURRENT" = "blue" ]; then
+            echo "current=blue" >> $GITHUB_OUTPUT
+            echo "target=green" >> $GITHUB_OUTPUT
+          else
+            echo "current=green" >> $GITHUB_OUTPUT
+            echo "target=blue" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🚀 Deploy to ${{ steps.check-env.outputs.target }} Environment
+        run: |
+          kubectl set image deployment/app-${{ steps.check-env.outputs.target }} \
+            app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --record
+
+      - name: ⏳ Wait for Rollout
+        run: |
+          kubectl rollout status deployment/app-${{ steps.check-env.outputs.target }} \
+            --timeout=5m
+
+      - name: 🧪 Run Smoke Tests
+        run: |
+          kubectl run smoke-test \
+            --image=${{ env.REGISTRY }}/smoke-tests:latest \
+            --env="TARGET=${{ steps.check-env.outputs.target }}" \
+            --wait
+
+      - name: 🔀 Switch Traffic
+        run: |
+          kubectl patch service app-service \
+            -p '{"spec":{"selector":{"version":"${{ steps.check-env.outputs.target }}"}}}'
+
+      - name: ✅ Verify Switch
+        run: |
+          sleep 30
+          TRAFFIC=$(kubectl get service app-service -o jsonpath='{.spec.selector.version}')
+          if [ "$TRAFFIC" != "${{ steps.check-env.outputs.target }}" ]; then
+            echo "❌ Traffic switch failed"
+            exit 1
+          fi
+          echo "✅ Traffic successfully switched to ${{ steps.check-env.outputs.target }}"
+
+      - name: 🔙 Rollback Plan
+        if: failure()
+        run: |
+          echo "Rolling back to ${{ steps.check-env.outputs.current }}"
+          kubectl patch service app-service \
+            -p '{"spec":{"selector":{"version":"${{ steps.check-env.outputs.current }}"}}}'
