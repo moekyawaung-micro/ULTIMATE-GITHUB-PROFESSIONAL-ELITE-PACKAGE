@@ -1,5 +1,3 @@
-# .github/workflows/blue-green-deployment.yml
-
 name: 🔄 Blue-Green Deployment
 
 on:
