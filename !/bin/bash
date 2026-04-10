@@ -1,0 +1,171 @@
+#!/bin/bash
+# scripts/release-manager.sh
+
+set -e
+
+VERSION=$(cat package.json | grep '"version"' | head -1 | awk -F'"' '{print $4}')
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+COMMIT=$(git rev-parse --short HEAD)
+DATE=$(date +%Y-%m-%d)
+
+echo "🚀 Starting Release Management"
+echo "Version: $VERSION"
+echo "Branch: $BRANCH"
+echo "Commit: $COMMIT"
+
+# ============================================
+# 1. Validate Release
+# ============================================
+
+validate_release() {
+    echo "🔍 Validating release..."
+    
+    # Check if on main branch
+    if [ "$BRANCH" != "main" ]; then
+        echo "❌ Must be on main branch"
+        exit 1
+    fi
+    
+    # Check if working directory is clean
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "❌ Working directory not clean"
+        exit 1
+    fi
+    
+    # Run tests
+    npm test || exit 1
+    
+    echo "✅ Release validation passed"
+}
+
+# ============================================
+# 2. Create Release Notes
+# ============================================
+
+create_release_notes() {
+    echo "📝 Creating release notes..."
+    
+    PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+    
+    if [ -z "$PREVIOUS_TAG" ]; then
+        CHANGELOG=$(git log --oneline --format="- %s" | head -20)
+    else
+        CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --oneline --format="- %s")
+    fi
+    
+    cat > RELEASE_NOTES.md <<EOF
+# Release $VERSION - $DATE
+
+## Changes
+$CHANGELOG
+
+## Installation
+\`\`\`bash
+npm install @myorg/app@$VERSION
+\`\`\`
+
+## Contributors
+EOF
+    
+    git log $PREVIOUS_TAG..HEAD --format="%an" | sort -u >> RELEASE_NOTES.md
+    
+    echo "✅ Release notes created"
+}
+
+# ============================================
+# 3. Tag Release
+# ============================================
+
+tag_release() {
+    echo "🏷️  Creating git tag..."
+    
+    git tag -a "v$VERSION" -m "Release version $VERSION
+
+    Release Date: $DATE
+    Commit: $COMMIT"
+    
+    git push origin "v$VERSION"
+    
+    echo "✅ Release tagged"
+}
+
+# ============================================
+# 4. Create GitHub Release
+# ============================================
+
+create_github_release() {
+    echo "📦 Creating GitHub release..."
+    
+    gh release create "v$VERSION" \
+        --title "Release $VERSION" \
+        --notes-file RELEASE_NOTES.md \
+        --latest
+    
+    echo "✅ GitHub release created"
+}
+
+# ============================================
+# 5. Publish to NPM
+# ============================================
+
+publish_to_npm() {
+    echo "📤 Publishing to NPM..."
+    
+    npm publish
+    
+    # Verify publication
+    sleep 10
+    npm view @myorg/app@$VERSION
+    
+    echo "✅ Published to NPM"
+}
+
+# ============================================
+# 6. Create Announcement
+# ============================================
+
+create_announcement() {
+    echo "📢 Creating announcement..."
+    
+    MESSAGE="🚀 Version $VERSION Released!
+
+📍 New Features & Improvements
+$CHANGELOG
+
+📥 Install Now
+npm install @myorg/app@$VERSION
+
+🔗 GitHub: https://github.com/myorg/app/releases/tag/v$VERSION
+📦 NPM: https://www.npmjs.com/package/@myorg/app
+
+❤️ Thanks to all contributors!"
+    
+    # Post to Slack
+    curl -X POST $SLACK_WEBHOOK \
+        -H 'Content-Type: application/json' \
+        -d "{\"text\": \"$MESSAGE\"}"
+    
+    # Post to Twitter
+    if command -v twurl &> /dev/null; then
+        twurl -X POST /1.1/statuses/update.json -d "status=$MESSAGE"
+    fi
+    
+    echo "✅ Announcement posted"
+}
+
+# ============================================
+# Main Execution
+# ============================================
+
+main() {
+    validate_release
+    create_release_notes
+    tag_release
+    create_github_release
+    publish_to_npm
+    create_announcement
+    
+    echo "✅ Release $VERSION completed successfully!"
+}
+
+main
