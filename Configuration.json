@@ -1,0 +1,128 @@
+{
+  "name": "@myorg/enterprise-app",
+  "version": "1.0.0",
+  "description": "Enterprise-grade application",
+  "author": "Moe Kyawaung <moe@example.com>",
+  "license": "MIT",
+  "private": false,
+  "homepage": "https://github.com/myorg/app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/myorg/app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/myorg/app/issues"
+  },
+  "keywords": [
+    "enterprise",
+    "full-stack",
+    "react",
+    "node",
+    "typescript"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=@myorg/api\" \"npm run dev --workspace=@myorg/web\"",
+    "build": "npm run build --workspaces",
+    "build:prod": "npm run build:prod --workspaces",
+    "start": "node dist/index.js",
+    "test": "jest --coverage",
+    "test:unit": "jest --testPathPattern=.unit.test",
+    "test:integration": "jest --testPathPattern=.integration.test",
+    "test:e2e": "cypress run",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --collectCoverageFrom='src/**/*.ts'",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write 'src/**/*.{ts,tsx,json,md}'",
+    "format:check": "prettier --check 'src/**/*.{ts,tsx,json,md}'",
+    "type-check": "tsc --noEmit",
+    "validate": "npm run lint && npm run type-check && npm run test",
+    "pre-commit": "lint-staged",
+    "prepush": "npm run validate",
+    "release": "standard-version",
+    "publish": "npm publish",
+    "migrate": "typeorm migration:run",
+    "migrate:test": "typeorm migration:run -e test",
+    "db:health-check": "node scripts/db-health-check.js",
+    "docker:build": "docker build -t myorg/app:latest .",
+    "docker:push": "docker push myorg/app:latest",
+    "analyze": "source-map-explorer 'dist/**/*.js'",
+    "lighthouse": "lighthouse https://example.com --view",
+    "generate:docs": "typedoc --out docs src"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.0.0",
+    "axios": "^1.4.0",
+    "lodash": "^4.17.21",
+    "date-fns": "^2.30.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "jest": "^29.0.0",
+    "@testing-library/react": "^14.0.0",
+    "cypress": "^12.0.0",
+    "typescript": "^5.0.0",
+    "concurrently": "^8.0.0",
+    "lint-staged": "^13.0.0",
+    "husky": "^8.0.0",
+    "standard-version": "^9.0.0",
+    "source-map-explorer": "^2.5.0",
+    "lighthouse": "^10.0.0",
+    "typedoc": "^0.24.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ],
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run validate"
+    }
+  },
+  "standard-version": {
+    "types": [
+      {
+        "type": "feat",
+        "section": "Features"
+      },
+      {
+        "type": "fix",
+        "section": "Bug Fixes"
+      }
+    ]
+  }
+}
