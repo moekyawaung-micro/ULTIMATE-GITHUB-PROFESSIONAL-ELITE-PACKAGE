@@ -1,0 +1,84 @@
+#!/bin/bash
+# scripts/monorepo-manager.sh
+
+# Workspace structure
+# ├── packages/
+# │   ├── core/
+# │   ├── web/
+# │   ├── mobile/
+# │   └── cli/
+# └── shared/
+
+echo "🏗️ Monorepo Manager"
+
+# ============================================
+# Install dependencies for all workspaces
+# ============================================
+
+install_all() {
+    echo "📦 Installing dependencies for all workspaces..."
+    npm install --workspaces
+}
+
+# ============================================
+# Run tests for all workspaces
+# ============================================
+
+test_all() {
+    echo "🧪 Running tests for all workspaces..."
+    npm test --workspaces
+}
+
+# ============================================
+# Build all workspaces
+# ============================================
+
+build_all() {
+    echo "🏗️ Building all workspaces..."
+    npm run build --workspaces
+}
+
+# ============================================
+# Publish workspaces
+# ============================================
+
+publish_all() {
+    echo "📤 Publishing workspaces..."
+    npm publish --workspaces
+}
+
+# ============================================
+# Check workspace health
+# ============================================
+
+check_health() {
+    echo "🏥 Checking workspace health..."
+    
+    for package in packages/*/; do
+        echo "Checking $package..."
+        (cd "$package" && npm audit)
+        (cd "$package" && npm run lint)
+    done
+}
+
+# Main menu
+case "$1" in
+    install)
+        install_all
+        ;;
+    test)
+        test_all
+        ;;
+    build)
+        build_all
+        ;;
+    publish)
+        publish_all
+        ;;
+    health)
+        check_health
+        ;;
+    *)
+        echo "Usage: $0 {install|test|build|publish|health}"
+        ;;
+esac
